@@ -54,10 +54,10 @@ std::vector<uint8_t> Extract::translateShader(std::vector<uint8_t> bytecode) {
 
     std::vector<BindingOffsets> validBindings;
     for (const auto varId : varIds) {
-        auto info = bindingOffsets[varId];
+        auto binding = bindingOffsets[varId];
 
-        if (info.bindingOffset)
-            validBindings.push_back(info);
+        if (binding.bindingOffset)
+            validBindings.push_back(binding);
     }
 
     // patch binding offset

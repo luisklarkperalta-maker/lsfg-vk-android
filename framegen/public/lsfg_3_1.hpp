@@ -81,6 +81,22 @@ namespace LSFG_3_1 {
     void presentContext(int32_t id, int inSem, const std::vector<int>& outSem);
 
     ///
+    /// Wait until the last present submitted for this context completes.
+    ///
+    /// @param id Unique identifier of the context to wait on.
+    ///
+    __attribute__((visibility("default")))
+    void waitContext(int32_t id);
+
+    ///
+    /// Reset frame history for a context after the host skips generated output.
+    ///
+    /// @param id Unique identifier of the context to reset.
+    ///
+    __attribute__((visibility("default")))
+    void resetContextHistory(int32_t id);
+
+    ///
     /// Delete an LSFG context.
     ///
     /// @param id Unique identifier of the context to delete.

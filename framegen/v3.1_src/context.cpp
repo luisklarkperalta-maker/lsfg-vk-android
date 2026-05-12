@@ -222,6 +222,27 @@ void Context::present(Vulkan& vk,
     this->frameIdx++;
 }
 
+void Context::wait(Vulkan& vk) {
+    if (this->frameIdx == 0)
+        return;
+
+    auto& data = this->data.at((this->frameIdx - 1) % 8);
+    if (!data.shouldWait)
+        return;
+
+    for (auto& fence : data.completionFences)
+        if (!fence.wait(vk.device, UINT64_MAX))
+            throw LSFG::vulkan_error(VK_TIMEOUT, "Fence wait timed out");
+
+    data.shouldWait = false;
+}
+
+void Context::resetHistory() {
+    this->frameIdx = 0;
+    for (auto& data : this->data)
+        data.shouldWait = false;
+}
+
 #ifdef __ANDROID__
 
 #include <android/hardware_buffer.h>

@@ -264,7 +264,14 @@ Image::Image(const Core::Device& device, VkExtent2D extent, VkFormat format,
         .sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID,
         .pNext = &fmtProps,
     };
-    auto res = vkGetAndroidHardwareBufferPropertiesANDROID(device.handle(), ahb, &ahbProps);
+    const auto getAhbProperties =
+        reinterpret_cast<PFN_vkGetAndroidHardwareBufferPropertiesANDROID>(
+            vkGetDeviceProcAddr(device.handle(), "vkGetAndroidHardwareBufferPropertiesANDROID"));
+    if (getAhbProperties == nullptr)
+        throw LSFG::vulkan_error(VK_ERROR_EXTENSION_NOT_PRESENT,
+            "vkGetAndroidHardwareBufferPropertiesANDROID is unavailable");
+
+    auto res = getAhbProperties(device.handle(), ahb, &ahbProps);
     if (res != VK_SUCCESS)
         throw LSFG::vulkan_error(res, "vkGetAndroidHardwareBufferPropertiesANDROID failed");
 

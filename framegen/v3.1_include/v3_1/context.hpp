@@ -66,6 +66,10 @@ namespace LSFG_3_1 {
         void present(Vulkan& vk,
             int inSem, const std::vector<int>& outSem);
 
+        void wait(Vulkan& vk);
+
+        void resetHistory();
+
         // Trivially copyable, moveable and destructible
         Context(const Context&) = default;
         Context& operator=(const Context&) = default;

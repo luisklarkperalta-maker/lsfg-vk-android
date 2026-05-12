@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <functional>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -25,7 +26,7 @@ using namespace LSFG_3_1;
 namespace {
     std::optional<Core::Instance> instance;
     std::optional<Vulkan> device;
-    std::unordered_map<int32_t, Context> contexts;
+    std::unordered_map<int32_t, std::unique_ptr<Context>> contexts;
 }
 
 void LSFG_3_1::initialize(uint64_t deviceUUID,
@@ -41,7 +42,7 @@ void LSFG_3_1::initialize(uint64_t deviceUUID,
         .flowScale = flowScale,
         .isHdr = isHdr
     });
-    contexts = std::unordered_map<int32_t, Context>();
+    contexts = std::unordered_map<int32_t, std::unique_ptr<Context>>();
 
     device->commandPool = Core::CommandPool(device->device);
     device->descriptorPool = Core::DescriptorPool(device->device);
@@ -59,7 +60,7 @@ int32_t LSFG_3_1::createContext(
         throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
 
     const int32_t id = std::rand();
-    contexts.emplace(id, Context(*device, in0, in1, outN, extent, format));
+    contexts.emplace(id, std::make_unique<Context>(*device, in0, in1, outN, extent, format));
     return id;
 }
 
@@ -71,7 +72,29 @@ void LSFG_3_1::presentContext(int32_t id, int inSem, const std::vector<int>& out
     if (it == contexts.end())
         throw LSFG::vulkan_error(VK_ERROR_UNKNOWN, "Context not found");
 
-    it->second.present(*device, inSem, outSem);
+    it->second->present(*device, inSem, outSem);
+}
+
+void LSFG_3_1::waitContext(int32_t id) {
+    if (!instance.has_value() || !device.has_value())
+        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+
+    auto it = contexts.find(id);
+    if (it == contexts.end())
+        throw LSFG::vulkan_error(VK_ERROR_UNKNOWN, "Context not found");
+
+    it->second->wait(*device);
+}
+
+void LSFG_3_1::resetContextHistory(int32_t id) {
+    if (!instance.has_value() || !device.has_value())
+        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+
+    auto it = contexts.find(id);
+    if (it == contexts.end())
+        throw LSFG::vulkan_error(VK_ERROR_UNKNOWN, "Context not found");
+
+    it->second->resetHistory();
 }
 
 void LSFG_3_1::deleteContext(int32_t id) {
@@ -108,7 +131,7 @@ int32_t LSFG_3_1::createContextFromAHB(
         throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
 
     const int32_t id = std::rand();
-    contexts.emplace(id, Context(*device, in0, in1, outN, extent, format));
+    contexts.emplace(id, std::make_unique<Context>(*device, in0, in1, outN, extent, format));
     return id;
 }
 

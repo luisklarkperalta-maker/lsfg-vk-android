@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <cstdint>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -75,6 +76,30 @@ namespace {
         return shaderData;
     }
 
+    auto& loadedDllPath() {
+        static std::string path;
+        return path;
+    }
+
+    std::string formatShaderIds() {
+        if (shaders().empty())
+            return "none";
+
+        std::vector<uint32_t> ids;
+        ids.reserve(shaders().size());
+        for (const auto& [id, _] : shaders())
+            ids.push_back(id);
+        std::ranges::sort(ids);
+
+        std::ostringstream out;
+        for (size_t i = 0; i < ids.size(); ++i) {
+            if (i != 0)
+                out << ", ";
+            out << ids[i];
+        }
+        return out.str();
+    }
+
     int on_resource(void*, const peparse::resource& res) {
         if (res.type != peparse::RT_RCDATA || res.buf == nullptr || res.buf->bufLen <= 0)
             return 0;
@@ -134,20 +159,27 @@ namespace {
 }
 
 void Extract::extractShaders() {
-    if (!shaders().empty())
+    const std::string dllPath = getDllPath();
+    if (!shaders().empty() && loadedDllPath() == dllPath)
         return;
 
+    shaders().clear();
+    loadedDllPath().clear();
+
     // parse the dll
-    peparse::parsed_pe* dll = peparse::ParsePEFromFile(getDllPath().c_str());
+    peparse::parsed_pe* dll = peparse::ParsePEFromFile(dllPath.c_str());
     if (!dll)
         throw std::runtime_error("Unable to read Lossless.dll, is it installed?");
     peparse::IterRsrc(dll, on_resource, nullptr);
     peparse::DestructParsedPE(dll);
 
-    // ensure all shaders are present
-    for (const auto& [name, idx] : nameIdxTable)
-        if (shaders().find(idx) == shaders().end())
-            throw std::runtime_error("Shader not found: " + name + ".\n- Is Lossless Scaling up to date?");
+    if (shaders().empty()) {
+        throw std::runtime_error(
+            "No LSFG shader resources found in Lossless.dll.\n"
+            "- Make sure this is the Lossless Scaling app's Lossless.dll, not an unrelated or old DLL.");
+    }
+
+    loadedDllPath() = dllPath;
 }
 
 std::vector<uint8_t> Extract::getShader(const std::string& name) {
@@ -160,7 +192,9 @@ std::vector<uint8_t> Extract::getShader(const std::string& name) {
 
     auto sit = shaders().find(hit->second);
     if (sit == shaders().end())
-        throw std::runtime_error("Shader not found: " + name);
+        throw std::runtime_error("Shader not found: " + name + " (resource " +
+            std::to_string(hit->second) + ").\n- Found shader resource IDs: " +
+            formatShaderIds() + "\n- Try a newer Lossless Scaling Lossless.dll or switch LSFG mode.");
 
     return sit->second;
 }
