@@ -1,8 +1,8 @@
 #include <volk.h>
 #include <vulkan/vulkan_core.h>
 
-#include "lsfg_3_1.hpp"
-#include "v3_1/context.hpp"
+#include "lsfg_3_1p.hpp"
+#include "v3_1p/context.hpp"
 #include "core/commandpool.hpp"
 #include "core/descriptorpool.hpp"
 #include "core/instance.hpp"
@@ -21,7 +21,7 @@
 #include <vector>
 
 using namespace LSFG;
-using namespace LSFG_3_1;
+using namespace LSFG_3_1P;
 
 namespace {
 
@@ -29,11 +29,13 @@ namespace {
 
     std::optional<Vulkan> device;
 
-    std::unordered_map<int32_t,
-        std::unique_ptr<Context>> contexts;
+    std::unordered_map<
+        int32_t,
+        std::unique_ptr<Context>
+    > contexts;
 }
 
-void LSFG_3_1::initialize(
+void LSFG_3_1P::initialize(
         uint64_t deviceUUID,
         bool isHdr,
         float flowScale,
@@ -84,7 +86,7 @@ void LSFG_3_1::initialize(
     );
 }
 
-int32_t LSFG_3_1::createContext(
+int32_t LSFG_3_1P::createContext(
         int in0,
         int in1,
         const std::vector<int>& outN,
@@ -116,7 +118,7 @@ int32_t LSFG_3_1::createContext(
     return id;
 }
 
-void LSFG_3_1::presentContext(
+void LSFG_3_1P::presentContext(
         int32_t id,
         int inSem,
         const std::vector<int>& outSem) {
@@ -146,7 +148,7 @@ void LSFG_3_1::presentContext(
     );
 }
 
-void LSFG_3_1::waitContext(int32_t id) {
+void LSFG_3_1P::waitContext(int32_t id) {
 
     if (!instance.has_value() || !device.has_value()) {
 
@@ -169,7 +171,7 @@ void LSFG_3_1::waitContext(int32_t id) {
     it->second->wait(*device);
 }
 
-void LSFG_3_1::resetContextHistory(int32_t id) {
+void LSFG_3_1P::resetContextHistory(int32_t id) {
 
     if (!instance.has_value() || !device.has_value()) {
 
@@ -192,7 +194,7 @@ void LSFG_3_1::resetContextHistory(int32_t id) {
     it->second->resetHistory();
 }
 
-void LSFG_3_1::deleteContext(int32_t id) {
+void LSFG_3_1P::deleteContext(int32_t id) {
 
     if (!instance.has_value() || !device.has_value()) {
 
@@ -214,8 +216,8 @@ void LSFG_3_1::deleteContext(int32_t id) {
 
 #ifdef __ANDROID__
 
-    // Lighter sync for Turnip/Adreno.
-    // Avoid full device stall.
+    // Avoid full GPU drain on Android.
+    // Much smoother on Turnip/Adreno.
 
     vkQueueWaitIdle(
         device->device.computeQueue()
@@ -232,7 +234,7 @@ void LSFG_3_1::deleteContext(int32_t id) {
     contexts.erase(it);
 }
 
-void LSFG_3_1::finalize() {
+void LSFG_3_1P::finalize() {
 
     if (!instance.has_value() || !device.has_value())
         return;
@@ -265,7 +267,7 @@ void LSFG_3_1::finalize() {
 
 #include <android/hardware_buffer.h>
 
-int32_t LSFG_3_1::createContextFromAHB(
+int32_t LSFG_3_1P::createContextFromAHB(
         AHardwareBuffer* in0,
         AHardwareBuffer* in1,
         const std::vector<AHardwareBuffer*>& outN,
@@ -297,13 +299,13 @@ int32_t LSFG_3_1::createContextFromAHB(
     return id;
 }
 
-void LSFG_3_1::waitIdle() {
+void LSFG_3_1P::waitIdle() {
 
     if (!device.has_value())
         return;
 
-    // HUGE improvement vs vkDeviceWaitIdle()
-    // Only waits FG compute queue.
+    // Massive improvement over vkDeviceWaitIdle()
+    // Wait only compute queue.
 
     vkQueueWaitIdle(
         device->device.computeQueue()
