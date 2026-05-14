@@ -24,98 +24,240 @@ using namespace LSFG;
 using namespace LSFG_3_1;
 
 namespace {
+
     std::optional<Core::Instance> instance;
+
     std::optional<Vulkan> device;
-    std::unordered_map<int32_t, std::unique_ptr<Context>> contexts;
+
+    std::unordered_map<int32_t,
+        std::unique_ptr<Context>> contexts;
 }
 
-void LSFG_3_1::initialize(uint64_t deviceUUID,
-        bool isHdr, float flowScale, uint64_t generationCount,
-        const std::function<std::vector<uint8_t>(const std::string&)>& loader) {
+void LSFG_3_1::initialize(
+        uint64_t deviceUUID,
+        bool isHdr,
+        float flowScale,
+        uint64_t generationCount,
+        const std::function<
+            std::vector<uint8_t>(
+                const std::string&
+            )
+        >& loader) {
+
     if (instance.has_value() || device.has_value())
         return;
 
     instance.emplace();
+
     device.emplace(Vulkan {
         .device{*instance, deviceUUID},
         .generationCount = generationCount,
         .flowScale = flowScale,
         .isHdr = isHdr
     });
-    contexts = std::unordered_map<int32_t, std::unique_ptr<Context>>();
 
-    device->commandPool = Core::CommandPool(device->device);
-    device->descriptorPool = Core::DescriptorPool(device->device);
+    contexts =
+        std::unordered_map<
+            int32_t,
+            std::unique_ptr<Context>
+        >();
 
-    device->resources = Pool::ResourcePool(device->isHdr, device->flowScale);
-    device->shaders = Pool::ShaderPool(loader);
+    device->commandPool =
+        Core::CommandPool(device->device);
 
-    std::srand(static_cast<uint32_t>(std::time(nullptr)));
+    device->descriptorPool =
+        Core::DescriptorPool(device->device);
+
+    device->resources =
+        Pool::ResourcePool(
+            device->isHdr,
+            device->flowScale
+        );
+
+    device->shaders =
+        Pool::ShaderPool(loader);
+
+    std::srand(
+        static_cast<uint32_t>(
+            std::time(nullptr)
+        )
+    );
 }
 
 int32_t LSFG_3_1::createContext(
-        int in0, int in1, const std::vector<int>& outN,
-        VkExtent2D extent, VkFormat format) {
-    if (!instance.has_value() || !device.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+        int in0,
+        int in1,
+        const std::vector<int>& outN,
+        VkExtent2D extent,
+        VkFormat format) {
+
+    if (!instance.has_value() || !device.has_value()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_INITIALIZATION_FAILED,
+            "LSFG not initialized"
+        );
+    }
 
     const int32_t id = std::rand();
-    contexts.emplace(id, std::make_unique<Context>(*device, in0, in1, outN, extent, format));
+
+    contexts.emplace(
+        id,
+        std::make_unique<Context>(
+            *device,
+            in0,
+            in1,
+            outN,
+            extent,
+            format
+        )
+    );
+
     return id;
 }
 
-void LSFG_3_1::presentContext(int32_t id, int inSem, const std::vector<int>& outSem) {
-    if (!instance.has_value() || !device.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+void LSFG_3_1::presentContext(
+        int32_t id,
+        int inSem,
+        const std::vector<int>& outSem) {
+
+    if (!instance.has_value() || !device.has_value()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_INITIALIZATION_FAILED,
+            "LSFG not initialized"
+        );
+    }
 
     auto it = contexts.find(id);
-    if (it == contexts.end())
-        throw LSFG::vulkan_error(VK_ERROR_UNKNOWN, "Context not found");
 
-    it->second->present(*device, inSem, outSem);
+    if (it == contexts.end()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_UNKNOWN,
+            "Context not found"
+        );
+    }
+
+    it->second->present(
+        *device,
+        inSem,
+        outSem
+    );
 }
 
 void LSFG_3_1::waitContext(int32_t id) {
-    if (!instance.has_value() || !device.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+
+    if (!instance.has_value() || !device.has_value()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_INITIALIZATION_FAILED,
+            "LSFG not initialized"
+        );
+    }
 
     auto it = contexts.find(id);
-    if (it == contexts.end())
-        throw LSFG::vulkan_error(VK_ERROR_UNKNOWN, "Context not found");
+
+    if (it == contexts.end()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_UNKNOWN,
+            "Context not found"
+        );
+    }
 
     it->second->wait(*device);
 }
 
 void LSFG_3_1::resetContextHistory(int32_t id) {
-    if (!instance.has_value() || !device.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+
+    if (!instance.has_value() || !device.has_value()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_INITIALIZATION_FAILED,
+            "LSFG not initialized"
+        );
+    }
 
     auto it = contexts.find(id);
-    if (it == contexts.end())
-        throw LSFG::vulkan_error(VK_ERROR_UNKNOWN, "Context not found");
+
+    if (it == contexts.end()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_UNKNOWN,
+            "Context not found"
+        );
+    }
 
     it->second->resetHistory();
 }
 
 void LSFG_3_1::deleteContext(int32_t id) {
-    if (!instance.has_value() || !device.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+
+    if (!instance.has_value() || !device.has_value()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_INITIALIZATION_FAILED,
+            "LSFG not initialized"
+        );
+    }
 
     auto it = contexts.find(id);
-    if (it == contexts.end())
-        throw LSFG::vulkan_error(VK_ERROR_DEVICE_LOST, "No such context");
 
-    vkDeviceWaitIdle(device->device.handle());
+    if (it == contexts.end()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_DEVICE_LOST,
+            "No such context"
+        );
+    }
+
+#ifdef __ANDROID__
+
+    // Lighter sync for Turnip/Adreno.
+    // Avoid full device stall.
+
+    vkQueueWaitIdle(
+        device->device.computeQueue()
+    );
+
+#else
+
+    vkDeviceWaitIdle(
+        device->device.handle()
+    );
+
+#endif
+
     contexts.erase(it);
 }
 
 void LSFG_3_1::finalize() {
+
     if (!instance.has_value() || !device.has_value())
         return;
 
-    vkDeviceWaitIdle(device->device.handle());
+#ifdef __ANDROID__
+
+    // Android optimization:
+    // only wait compute queue
+
+    vkQueueWaitIdle(
+        device->device.computeQueue()
+    );
+
+#else
+
+    vkDeviceWaitIdle(
+        device->device.handle()
+    );
+
+#endif
+
     contexts.clear();
+
     device.reset();
+
     instance.reset();
 }
 
@@ -124,22 +266,48 @@ void LSFG_3_1::finalize() {
 #include <android/hardware_buffer.h>
 
 int32_t LSFG_3_1::createContextFromAHB(
-        AHardwareBuffer* in0, AHardwareBuffer* in1,
+        AHardwareBuffer* in0,
+        AHardwareBuffer* in1,
         const std::vector<AHardwareBuffer*>& outN,
-        VkExtent2D extent, VkFormat format) {
-    if (!instance.has_value() || !device.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "LSFG not initialized");
+        VkExtent2D extent,
+        VkFormat format) {
+
+    if (!instance.has_value() || !device.has_value()) {
+
+        throw LSFG::vulkan_error(
+            VK_ERROR_INITIALIZATION_FAILED,
+            "LSFG not initialized"
+        );
+    }
 
     const int32_t id = std::rand();
-    contexts.emplace(id, std::make_unique<Context>(*device, in0, in1, outN, extent, format));
+
+    contexts.emplace(
+        id,
+        std::make_unique<Context>(
+            *device,
+            in0,
+            in1,
+            outN,
+            extent,
+            format
+        )
+    );
+
     return id;
 }
 
-#endif // __ANDROID__
-
-#ifdef __ANDROID__
 void LSFG_3_1::waitIdle() {
-    if (!device.has_value()) return;
-    vkDeviceWaitIdle(device->device.handle());
+
+    if (!device.has_value())
+        return;
+
+    // HUGE improvement vs vkDeviceWaitIdle()
+    // Only waits FG compute queue.
+
+    vkQueueWaitIdle(
+        device->device.computeQueue()
+    );
 }
+
 #endif
