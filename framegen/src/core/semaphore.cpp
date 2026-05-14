@@ -22,10 +22,10 @@ Semaphore::Semaphore(const Core::Device& device, std::optional<uint32_t> initial
     };
     const VkSemaphoreCreateInfo desc{
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        .pNext = initial.has_value() ? &typeInfo : nullptr
+        .pNext = initial.has_value() ? &typeInfo : nullptr,
         .flags = 0
     };
-    
+
     VkSemaphore semaphoreHandle{};
     auto res = vkCreateSemaphore(device.handle(), &desc, nullptr, &semaphoreHandle);
     if (res != VK_SUCCESS || semaphoreHandle == VK_NULL_HANDLE)
@@ -48,18 +48,18 @@ Semaphore::Semaphore(const Core::Device& device, int fd) {
         .pNext = nullptr,
         .handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT
     };
-    
+
     const VkSemaphoreCreateInfo desc{
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         .pNext = &exportInfo,
         .flags = 0
     };
-    
+
     VkSemaphore semaphoreHandle{};
     auto res = vkCreateSemaphore(device.handle(), &desc, nullptr, &semaphoreHandle);
     if (res != VK_SUCCESS || semaphoreHandle == VK_NULL_HANDLE)
         throw LSFG::vulkan_error(res, "Unable to create binary semaphore for FD import");
-    
+
     // 2. Import the FD using the TEMPORARY flag
     // On Android/Turnip, SYNC_FD imports MUST be temporary to replace the payload
     auto vkImportSemaphoreFdKHR = reinterpret_cast<PFN_vkImportSemaphoreFdKHR>(
@@ -76,13 +76,13 @@ Semaphore::Semaphore(const Core::Device& device, int fd) {
         .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT,
         .fd = fd // The driver takes ownership and will close(fd)
     };
-    
+
     res = vkImportSemaphoreFdKHR(device.handle(), &importInfo);
     if (res != VK_SUCCESS) {
         vkDestroySemaphore(device.handle(), semaphoreHandle, nullptr);
         throw LSFG::vulkan_error(res, "Unable to import semaphore from fd");
     }
-        
+
     this->isTimeline = false;
     this->semaphore = std::shared_ptr<VkSemaphore>(
         new VkSemaphore(semaphoreHandle),
@@ -114,7 +114,7 @@ int Semaphore::exportFd(const Core::Device& device) const {
 
 void Semaphore::signal(const Core::Device& device, uint64_t value) const {
     if (!this->isTimeline)
-        throw std::logic_error("Cannot signal a binary semaphore via signal() - use Queue submission
+        throw std::logic_error("Cannot signal a binary semaphore via signal() - use Queue submission");
 
     const VkSemaphoreSignalInfo signalInfo{
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO,
@@ -130,7 +130,7 @@ void Semaphore::signal(const Core::Device& device, uint64_t value) const {
 bool Semaphore::wait(const Core::Device& device, uint64_t value, uint64_t timeout) const {
     if (!this->isTimeline)
         throw std::logic_error("Cannot wait on a binary semaphore via wait() - use Queue wait");
-    
+
     VkSemaphore sem = this->handle();
     const VkSemaphoreWaitInfo waitInfo{
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
